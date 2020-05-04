@@ -1,0 +1,73 @@
+"""
+The module implementing functions used among others in the AppConfig, before Django imports work properly.
+As long as this module is imported in django_wfe.__init__, all functions should define imports within themselves.
+"""
+import typing
+
+
+def order_workflow_execution(workflow_id: typing.Union[int, str]) -> int:
+    """
+    A function handling Django WFE Workflow execution order.
+
+    :param workflow_id: django_wfe.models.Workflow record's ID
+    :return: Ordered workflow's execution ID (django_wfe.models.Job instance's ID)
+    """
+    from .models import Workflow, Job
+    from .tasks import process_job
+
+    job = Job(workflow=Workflow.objects.get(id=int(workflow_id)))
+    job.save()
+    process_job.send(job_id=job.id)
+
+    return job.id
+
+
+def provide_external_input(
+    job_id: typing.Union[int, str], external_data: typing.Dict
+) -> None:
+    """
+    A function handling Django WFE external input's and resuming the execution of the Workflow.
+
+    :param job_id: django_wfe.models.Job record's ID
+    :param external_data: a dictionary containing external data required by the current django_wfe.models.Step
+    :return: None
+    """
+    from .models import Job
+    from .tasks import process_job
+
+    job = Job.objects.get(id=job_id)
+    job.provide_external_input(external_data)
+    process_job.send(job.id)
+
+
+def set_watchdog_on_wdk_models():
+    """
+    Method starting a background thread updating database with user defined Steps, Decisions and Workflows.
+
+    :return: None
+    """
+    import atexit
+    from apscheduler.schedulers.background import BackgroundScheduler
+    from django.db.utils import ProgrammingError
+
+    from .models import Watchdog
+    from .utils import update_wdk_models, deregister_watchdog
+
+    try:
+        watchdog = Watchdog.load()
+    except ProgrammingError:
+        # raised in case of not existing models in db (e.g. on the python manage.py migrate)
+        print("Watchdog singleton cannot be fetched from db.")
+        return
+
+    if not watchdog.running:
+        # order deregister_watchdog() executions as exit function.
+        atexit.register(deregister_watchdog)
+
+        # mark watchdog as running
+        watchdog.running = True
+        watchdog.save()
+        # schedule periodic watchdog's execution
+        scheduler = BackgroundScheduler(daemon=True)
+        scheduler.add_job(update_wdk_models, "interval", seconds=5)
+        scheduler.start()

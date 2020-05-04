@@ -1,0 +1,23 @@
+from django.apps import AppConfig
+from .utils_config import order_workflow_execution, provide_external_input
+
+
+VERSION = (0, 1, 0)
+__version__ = ".".join([str(i) for i in VERSION])
+__author__ = "geosolutions-it"
+__email__ = "info@geosolutionsgroup.com"
+__url__ = "https://github.com/geosolutions-it/django-wfe"
+__license__ = "GNU General Public License"
+
+
+class DjangoWfeConfig(AppConfig):
+    name = "django_wfe"
+    verbose_name = "Django Workflow Engine"
+
+    def ready(self):
+        from . import utils_config
+
+        utils_config.set_watchdog_on_wdk_models()
+
+
+default_app_config = "django_wfe.DjangoWfeConfig"
