@@ -1,8 +1,8 @@
 from rest_framework import viewsets, mixins, permissions
-from django_wfe import order_workflow_execution
 
 from .models import Step, Job, Workflow
 from .serializers import StepSerializer, JobSerializer, WorkflowSerializer
+from .tasks import process_job
 
 
 class StepViewSet(viewsets.ReadOnlyModelViewSet):
@@ -28,6 +28,6 @@ class JobViewSet(
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        super().perform_create(serializer)
-        # Job creation with REST API also orders Job's execution
-        order_workflow_execution(serializer.validated_data["workflow_id"])
+        job = serializer.save()
+        # send Job's execution to Dramatiq on Job's creation
+        process_job.send(job_id=job.id)

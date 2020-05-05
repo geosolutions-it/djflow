@@ -37,4 +37,4 @@ class JobSerializer(serializers.ModelSerializer):
     class Meta:
         model = Job
         fields = "__all__"
-        read_only_fields = ["current_step", "storage", "state"]
+        read_only_fields = ["current_step", "current_step_number", "storage", "state"]

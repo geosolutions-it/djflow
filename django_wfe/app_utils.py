@@ -51,7 +51,7 @@ def set_watchdog_on_wdk_models():
     from django.db.utils import ProgrammingError
 
     from .models import Watchdog
-    from .utils import update_wdk_models, deregister_watchdog
+    from .utils import deregister_watchdog, update_wdk_models
 
     try:
         watchdog = Watchdog.load()

@@ -4,7 +4,14 @@ import importlib
 from django.db import models
 from django.contrib.postgres.fields import JSONField
 
-from .utils import JobState
+
+class JobState:
+    PENDING = "PENDING"
+    ONGOING = "ONGOING"
+    INPUT_REQUIRED = "INPUT_REQUIRED"
+    INPUT_RECEIVED = "INPUT_RECEIVED"
+    FAILED = "FAILED"
+    FINISHED = "FINISHED"
 
 
 def default_storage():

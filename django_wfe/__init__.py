@@ -1,5 +1,9 @@
+"""
+A Django app providing multi-step workflow execution tools.
+"""
+
 from django.apps import AppConfig
-from .utils_config import order_workflow_execution, provide_external_input
+from .app_utils import order_workflow_execution, provide_external_input
 
 
 VERSION = (0, 1, 0)
@@ -15,9 +19,9 @@ class DjangoWfeConfig(AppConfig):
     verbose_name = "Django Workflow Engine"
 
     def ready(self):
-        from . import utils_config
+        from . import utils
 
-        utils_config.set_watchdog_on_wdk_models()
+        utils.set_watchdog_on_wdk_models()
 
 
 default_app_config = "django_wfe.DjangoWfeConfig"
