@@ -19,6 +19,10 @@ class DjangoWfeConfig(AppConfig):
     verbose_name = "Django Workflow Engine"
 
     def ready(self):
+        # register Django system check framework checks
+        from . import system_checks
+
+        # start watchdog background task
         from . import utils
 
         utils.set_watchdog_on_wdk_models()

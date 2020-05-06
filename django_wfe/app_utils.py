@@ -73,4 +73,4 @@ def set_watchdog_on_wdk_models():
         scheduler.add_job(update_wdk_models, "interval", seconds=WATCHDOG_INTERVAL)
         scheduler.start()
     elif WATCHDOG_INTERVAL <= 0:
-        print(f'Watchdog turned of by WATCHDOG_INTERVAL equal: {WATCHDOG_INTERVAL}')
+        print(f"Watchdog turned of by WATCHDOG_INTERVAL equal: {WATCHDOG_INTERVAL}")
