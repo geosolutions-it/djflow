@@ -1,8 +1,13 @@
+import time
 import typing
+import logging
 import importlib
+import traceback
 
 from django.db import models
 from django.contrib.postgres.fields import JSONField
+
+from .logging import Tee
 
 
 class JobState:
@@ -89,6 +94,7 @@ class Job(models.Model):
         default=default_storage,
     )
     state = models.CharField(max_length=20, null=True, default=JobState.PENDING)
+    logfile = models.CharField(max_length=300)
 
     def save(
         self, force_insert=False, force_update=False, using=None, update_fields=None
@@ -178,7 +184,23 @@ class Job(models.Model):
             else None
         )
 
-        result = current_step._perform_execute(_input=previous_step_result)
+        try:
+            with Tee(self.logfile, "a"):
+                print(
+                    f"Performing execute() method of Step #{self.current_step_number}: {CurrentStep.__name__}"
+                )
+                result = current_step._perform_execute(_input=previous_step_result)
+                print(
+                    f"---- execute() finished successfully with a result: {result} ----"
+                )
+        except Exception as exception:
+            with open(self.logfile, "a") as log:
+                log.write(
+                    "".join(
+                        traceback.TracebackException.from_exception(exception).format()
+                    )
+                )
+            raise
 
         try:
             self.storage["data"][self.current_step_number]["result"] = result
@@ -188,7 +210,25 @@ class Job(models.Model):
             )
         self.save()
 
-        transition = current_step._perform_transition(_input=previous_step_result)
+        try:
+            with Tee(self.logfile, "a"):
+                print(
+                    f"---- Performing transition() method of Step #{self.current_step_number}: {CurrentStep.__name__} ----"
+                )
+                transition = current_step._perform_transition(
+                    _input=previous_step_result
+                )
+                print(
+                    f"---- transition() finished successfully with a result: {transition} ----"
+                )
+        except Exception as exception:
+            with open(self.logfile, "a") as log:
+                log.write(
+                    "".join(
+                        traceback.TracebackException.from_exception(exception).format()
+                    )
+                )
+            raise
 
         if (
             Workflow.DIGRAPH.get(CurrentStep) is None
