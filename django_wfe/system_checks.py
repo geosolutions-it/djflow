@@ -5,7 +5,7 @@ from django.conf import settings
 from django.core import checks
 
 from .tasks import test_dramatiq
-from .settings import LOG_DIR
+from .settings import WFE_LOG_DIR
 
 
 REQUIRED_SETTINGS = [
@@ -71,7 +71,7 @@ class LogDirNoneError(checks.Error):
 class LogDirNotDirError(checks.Error):
     def __init__(self, *args, **kwargs):
         super().__init__(
-            f"Django WFE log directory ({LOG_DIR}) exists in the file system, but is not a directory.",
+            f"Django WFE log directory ({WFE_LOG_DIR}) exists in the file system, but is not a directory.",
             hint=f"Please check WFE_LOG_DIR setting, explicitly define or change it to point at a directory.",
             obj=settings,
             id="django_wfe.logs.E002",
@@ -83,8 +83,8 @@ class LogDirNotDirError(checks.Error):
 class LogDirParentDoesNotExistError(checks.Error):
     def __init__(self, *args, **kwargs):
         super().__init__(
-            f"Django WFE parent of the log directory ({LOG_DIR}) does not exist.",
-            hint=f"Make sure all parents exist for the {LOG_DIR}.",
+            f"Django WFE parent of the log directory ({WFE_LOG_DIR}) does not exist.",
+            hint=f"Make sure all parents exist for the {WFE_LOG_DIR}.",
             obj=settings,
             id="django_wfe.logs.E003",
             *args,
@@ -150,31 +150,31 @@ def dramatiq_check(app_configs, **kwargs):
 
 
 @checks.register()
-def log_dir_check(apps_configs, **kwargs):
+def log_dir_check(app_configs, **kwargs):
     errors = []
 
-    # check if LOG_DIR is defined
-    if LOG_DIR is None:
+    # check if WFE_LOG_DIR is defined
+    if WFE_LOG_DIR is None:
         errors.append(LogDirNoneError())
 
     else:
 
         check_dir_writability = True
 
-        if os.path.exists(LOG_DIR):
-            # if LOG_DIR exists in the file system, make sure it's a directory
-            if not os.path.isdir(LOG_DIR):
+        if os.path.exists(WFE_LOG_DIR):
+            # if WFE_LOG_DIR exists in the file system, make sure it's a directory
+            if not os.path.isdir(WFE_LOG_DIR):
                 errors.append(LogDirNotDirError)
                 check_dir_writability = False
         else:
             # try to create a log directory, if it does not exist
             try:
-                os.mkdir(LOG_DIR)
+                os.mkdir(WFE_LOG_DIR)
             except FileNotFoundError:
                 errors.append(LogDirParentDoesNotExistError())
                 check_dir_writability = False
             except PermissionError:
-                errors.append(LogDirPermissionError(LOG_DIR))
+                errors.append(LogDirPermissionError(WFE_LOG_DIR))
                 check_dir_writability = False
             except Exception as e:
                 errors.append(
@@ -186,18 +186,20 @@ def log_dir_check(apps_configs, **kwargs):
                 check_dir_writability = False
 
         if check_dir_writability:
-            # check writability of the LOG_DIR
+            # check writability of the WFE_LOG_DIR
             try:
-                with tempfile.NamedTemporaryFile(dir=LOG_DIR) as tmp_file:
-                    with open(tmp_file, "w") as file:
+                with tempfile.NamedTemporaryFile(dir=WFE_LOG_DIR) as tmp_file:
+                    with open(tmp_file.name, "w") as file:
                         file.write("Some random string.")
 
             except PermissionError:
-                errors.append(LogDirPermissionError(os.path.join(LOG_DIR, "tempfile")))
+                errors.append(
+                    LogDirPermissionError(os.path.join(WFE_LOG_DIR, "tempfile"))
+                )
             except Exception as e:
                 errors.append(
                     LogDirOtherError(
-                        action="Log file creation failed with an exception",
+                        action="Creation of the logfile failed",
                         error=f"{type(e).__name__}: {e}",
                     )
                 )

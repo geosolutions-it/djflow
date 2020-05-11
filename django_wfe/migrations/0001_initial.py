@@ -10,45 +10,111 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Step',
+            name="Step",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=250)),
-                ('path', models.CharField(help_text='Python path of the Step definition', max_length=250, unique=True)),
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=250)),
+                (
+                    "path",
+                    models.CharField(
+                        help_text="Python path of the Step definition",
+                        max_length=250,
+                        unique=True,
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Watchdog',
+            name="Watchdog",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('running', models.BooleanField(default=False)),
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("running", models.BooleanField(default=False)),
             ],
-            options={
-                'abstract': False,
-            },
+            options={"abstract": False,},
         ),
         migrations.CreateModel(
-            name='Workflow',
+            name="Workflow",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=250)),
-                ('path', models.CharField(help_text='Python path of the Workflow definition', max_length=250, unique=True)),
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=250)),
+                (
+                    "path",
+                    models.CharField(
+                        help_text="Python path of the Workflow definition",
+                        max_length=250,
+                        unique=True,
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Job',
+            name="Job",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('current_step_number', models.IntegerField(default=0)),
-                ('storage', django.contrib.postgres.fields.jsonb.JSONField(default=django_wfe.models.default_storage, help_text="Serialized output of executed Workflow's Steps and data shared between Steps")),
-                ('state', models.CharField(default='PENDING', max_length=20, null=True)),
-                ('current_step', models.ForeignKey(default=None, null=True, on_delete=django.db.models.deletion.CASCADE, to='django_wfe.Step')),
-                ('workflow', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='django_wfe.Workflow')),
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("current_step_number", models.IntegerField(default=0)),
+                (
+                    "storage",
+                    django.contrib.postgres.fields.jsonb.JSONField(
+                        default=django_wfe.models.default_storage,
+                        help_text="Serialized output of executed Workflow's Steps and data shared between Steps",
+                    ),
+                ),
+                (
+                    "state",
+                    models.CharField(default="PENDING", max_length=20, null=True),
+                ),
+                (
+                    "current_step",
+                    models.ForeignKey(
+                        default=None,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="django_wfe.Step",
+                    ),
+                ),
+                (
+                    "workflow",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="django_wfe.Workflow",
+                    ),
+                ),
             ],
         ),
     ]

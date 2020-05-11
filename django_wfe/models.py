@@ -1,6 +1,7 @@
-import time
+import os
+import uuid
 import typing
-import logging
+import datetime
 import importlib
 import traceback
 
@@ -8,6 +9,7 @@ from django.db import models
 from django.contrib.postgres.fields import JSONField
 
 from .logging import Tee
+from .settings import WFE_LOG_DIR
 
 
 class JobState:
@@ -84,6 +86,7 @@ class Job(models.Model):
     A table keeping the serialized state of a certain workflows' executions.
     """
 
+    uuid = models.UUIDField(default=uuid.uuid4)
     workflow = models.ForeignKey(Workflow, on_delete=models.CASCADE)
     current_step = models.ForeignKey(
         Step, on_delete=models.CASCADE, null=True, default=None
@@ -94,7 +97,7 @@ class Job(models.Model):
         default=default_storage,
     )
     state = models.CharField(max_length=20, null=True, default=JobState.PENDING)
-    logfile = models.CharField(max_length=300)
+    logfile = models.CharField(max_length=300, default=None)
 
     def save(
         self, force_insert=False, force_update=False, using=None, update_fields=None
@@ -107,6 +110,11 @@ class Job(models.Model):
                 print(
                     "Step '__start__' not found. Please make sure it is present in the database before ordering a Job."
                 )
+
+        if self.logfile is None:
+            self.logfile = os.path.join(
+                WFE_LOG_DIR, f"{self.workflow.name}_{self.uuid}.log"
+            )
 
         super().save()
 
@@ -173,7 +181,11 @@ class Job(models.Model):
         if current_step.requires_input and self.state != JobState.INPUT_RECEIVED:
             self.state = JobState.INPUT_REQUIRED
             self.save()
+
+            self._log(f"Step #{self.current_step_number} '{CurrentStep.__name__}': input required")
             return
+        else:
+            self._log(f"Step #{self.current_step_number} '{CurrentStep.__name__}': processing started")
 
         self.state = JobState.ONGOING
         self.save()
@@ -184,16 +196,14 @@ class Job(models.Model):
             else None
         )
 
+        self._log(f"Step #{self.current_step_number} '{CurrentStep.__name__}': performing execute():")
+
         try:
             with Tee(self.logfile, "a"):
-                print(
-                    f"Performing execute() method of Step #{self.current_step_number}: {CurrentStep.__name__}"
-                )
-                result = current_step._perform_execute(_input=previous_step_result)
-                print(
-                    f"---- execute() finished successfully with a result: {result} ----"
-                )
+                result = current_step._perform_execute(_input=previous_step_result, logfile=self.logfile)
+
         except Exception as exception:
+            # log exception in the logfile
             with open(self.logfile, "a") as log:
                 log.write(
                     "".join(
@@ -201,6 +211,8 @@ class Job(models.Model):
                     )
                 )
             raise
+
+        self._log(f"Step #{self.current_step_number} '{CurrentStep.__name__}': execution finished successfully with a result: {result}")
 
         try:
             self.storage["data"][self.current_step_number]["result"] = result
@@ -210,18 +222,16 @@ class Job(models.Model):
             )
         self.save()
 
+        self._log(f"Step #{self.current_step_number} '{CurrentStep.__name__}': performing transition():")
+
         try:
             with Tee(self.logfile, "a"):
-                print(
-                    f"---- Performing transition() method of Step #{self.current_step_number}: {CurrentStep.__name__} ----"
-                )
                 transition = current_step._perform_transition(
                     _input=previous_step_result
                 )
-                print(
-                    f"---- transition() finished successfully with a result: {transition} ----"
-                )
+
         except Exception as exception:
+            # log exception in the logfile
             with open(self.logfile, "a") as log:
                 log.write(
                     "".join(
@@ -230,6 +240,8 @@ class Job(models.Model):
                 )
             raise
 
+        self._log(f"Step #{self.current_step_number} '{CurrentStep.__name__}': transition finished successfully with a result: {transition}")
+
         if (
             Workflow.DIGRAPH.get(CurrentStep) is None
             or len(Workflow.DIGRAPH.get(CurrentStep)) == 0
@@ -237,7 +249,11 @@ class Job(models.Model):
             # workflow's finished
             self.state = JobState.FINISHED
             self.save()
+
+            self._log(f"---- WORKFLOW FINISHED SUCCESSFULLY ----")
             return
+
+        self._log(f"Step #{self.current_step_number} '{CurrentStep.__name__}': step finished")
 
         self.current_step = Step.objects.get(
             path=(
@@ -250,6 +266,17 @@ class Job(models.Model):
         self.save()
 
         self._run_next()
+
+    def _log(self, msg: str):
+        """
+        Method logging the message to file and printing it to stdout
+
+        :param msg: string to be logged to file and printed on stdout
+        :return: None
+        """
+
+        with Tee(self.logfile, "a"):
+            print(f'{datetime.datetime.now()} {msg}')
 
     def _import_class(self, path: str):
         """

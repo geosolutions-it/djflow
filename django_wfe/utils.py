@@ -5,7 +5,7 @@ from django.db.models import ObjectDoesNotExist
 from django.db.utils import ProgrammingError
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from .settings import WORKFLOWS
+from .settings import WFE_WORKFLOWS
 from .models import Step, Workflow, Watchdog
 from .workflows import WorkflowType
 
@@ -57,12 +57,12 @@ def update_wdk_models():
     :return: None
     """
 
-    if WORKFLOWS is None:
+    if WFE_WORKFLOWS is None:
         print(f"WARNING: Module's path for django-wfe Workflows is None.")
         return
 
     # import the module
-    model_definitions_module = importlib.import_module(WORKFLOWS)
+    model_definitions_module = importlib.import_module(WFE_WORKFLOWS)
     # refresh the module to attach all the newest changes
     importlib.reload(model_definitions_module)
 
@@ -73,7 +73,7 @@ def update_wdk_models():
     ]
 
     for name, cls in models:
-        model_path = f"{WORKFLOWS}.{name}"
+        model_path = f"{WFE_WORKFLOWS}.{name}"
 
         steps_cls = cls._get_steps_classes()
 
