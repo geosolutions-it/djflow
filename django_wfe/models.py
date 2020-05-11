@@ -182,10 +182,14 @@ class Job(models.Model):
             self.state = JobState.INPUT_REQUIRED
             self.save()
 
-            self._log(f"Step #{self.current_step_number} '{CurrentStep.__name__}': input required")
+            self._log(
+                f"Step #{self.current_step_number} '{CurrentStep.__name__}': input required"
+            )
             return
         else:
-            self._log(f"Step #{self.current_step_number} '{CurrentStep.__name__}': processing started")
+            self._log(
+                f"Step #{self.current_step_number} '{CurrentStep.__name__}': processing started"
+            )
 
         self.state = JobState.ONGOING
         self.save()
@@ -196,11 +200,15 @@ class Job(models.Model):
             else None
         )
 
-        self._log(f"Step #{self.current_step_number} '{CurrentStep.__name__}': performing execute():")
+        self._log(
+            f"Step #{self.current_step_number} '{CurrentStep.__name__}': performing execute():"
+        )
 
         try:
             with Tee(self.logfile, "a"):
-                result = current_step._perform_execute(_input=previous_step_result, logfile=self.logfile)
+                result = current_step._perform_execute(
+                    _input=previous_step_result, logfile=self.logfile
+                )
 
         except Exception as exception:
             # log exception in the logfile
@@ -212,7 +220,9 @@ class Job(models.Model):
                 )
             raise
 
-        self._log(f"Step #{self.current_step_number} '{CurrentStep.__name__}': execution finished successfully with a result: {result}")
+        self._log(
+            f"Step #{self.current_step_number} '{CurrentStep.__name__}': execution finished successfully with a result: {result}"
+        )
 
         try:
             self.storage["data"][self.current_step_number]["result"] = result
@@ -222,7 +232,9 @@ class Job(models.Model):
             )
         self.save()
 
-        self._log(f"Step #{self.current_step_number} '{CurrentStep.__name__}': performing transition():")
+        self._log(
+            f"Step #{self.current_step_number} '{CurrentStep.__name__}': performing transition():"
+        )
 
         try:
             with Tee(self.logfile, "a"):
@@ -240,7 +252,9 @@ class Job(models.Model):
                 )
             raise
 
-        self._log(f"Step #{self.current_step_number} '{CurrentStep.__name__}': transition finished successfully with a result: {transition}")
+        self._log(
+            f"Step #{self.current_step_number} '{CurrentStep.__name__}': transition finished successfully with a result: {transition}"
+        )
 
         if (
             Workflow.DIGRAPH.get(CurrentStep) is None
@@ -253,7 +267,9 @@ class Job(models.Model):
             self._log(f"---- WORKFLOW FINISHED SUCCESSFULLY ----")
             return
 
-        self._log(f"Step #{self.current_step_number} '{CurrentStep.__name__}': step finished")
+        self._log(
+            f"Step #{self.current_step_number} '{CurrentStep.__name__}': step finished"
+        )
 
         self.current_step = Step.objects.get(
             path=(
@@ -276,7 +292,7 @@ class Job(models.Model):
         """
 
         with Tee(self.logfile, "a"):
-            print(f'{datetime.datetime.now()} {msg}')
+            print(f"{datetime.datetime.now()} {msg}")
 
     def _import_class(self, path: str):
         """

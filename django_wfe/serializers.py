@@ -39,8 +39,16 @@ class JobSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Job
-        exclude = ['logfile', 'uuid']
-        read_only_fields = ["current_step", "current_step_number", "storage", "state", "uuid", "logfile", "logs"]
+        exclude = ["logfile", "uuid"]
+        read_only_fields = [
+            "current_step",
+            "current_step_number",
+            "storage",
+            "state",
+            "uuid",
+            "logfile",
+            "logs",
+        ]
 
     def get_log_file(self, obj):
-        return reverse_lazy('django_wfe:job_logs', args=[obj.id])
+        return reverse_lazy("django_wfe:job_logs", args=[obj.id])

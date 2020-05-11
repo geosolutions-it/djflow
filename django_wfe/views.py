@@ -37,14 +37,13 @@ class JobViewSet(
 
 
 class JobLogsView(views.APIView):
-
     def get(self, request, job_id):
         try:
             job = Job.objects.get(id=job_id)
         except ObjectDoesNotExist:
-            return Response('Job not found', status=404)
+            return Response("Job not found", status=404)
 
         try:
-            return FileResponse(open(job.logfile, 'rb'))
+            return FileResponse(open(job.logfile, "rb"))
         except FileNotFoundError:
-            return Response('Log file not found', status=404)
+            return Response("Log file not found", status=404)

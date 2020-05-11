@@ -29,14 +29,16 @@ class WorkflowAdmin(admin.ModelAdmin):
 
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
-    list_display = ("__str__", "workflow", "state", 'logs')
+    list_display = ("__str__", "workflow", "state", "logs")
     list_filter = ("workflow", "state")
     search_fields = ("workflow__path", "state")
     readonly_fields = ("current_step", "storage", "state", "logfile")
-    exclude = ('uuid',)
+    exclude = ("uuid",)
 
     def logs(self, obj):
-        return format_html(f"<a href='{reverse_lazy('django_wfe:job_logs', args=[obj.id])}'>{obj}</a>")
+        return format_html(
+            f"<a href='{reverse_lazy('django_wfe:job_logs', args=[obj.id])}'>{obj}</a>"
+        )
 
     def has_change_permission(self, request, obj=None):
         return False

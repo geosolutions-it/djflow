@@ -7,18 +7,16 @@ import uuid
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('django_wfe', '0001_initial'),
+        ("django_wfe", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='job',
-            name='logfile',
+            model_name="job",
+            name="logfile",
             field=models.CharField(default=None, max_length=300),
         ),
         migrations.AddField(
-            model_name='job',
-            name='uuid',
-            field=models.UUIDField(default=uuid.uuid4),
+            model_name="job", name="uuid", field=models.UUIDField(default=uuid.uuid4),
         ),
     ]
