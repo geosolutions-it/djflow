@@ -1,4 +1,7 @@
-from rest_framework import viewsets, mixins, permissions
+from django.http import FileResponse
+from django.core.exceptions import ObjectDoesNotExist
+from rest_framework import views, viewsets, mixins, permissions
+from rest_framework.response import Response
 
 from .models import Step, Job, Workflow
 from .serializers import StepSerializer, JobSerializer, WorkflowSerializer
@@ -31,3 +34,16 @@ class JobViewSet(
         job = serializer.save()
         # send Job's execution to Dramatiq on Job's creation
         process_job.send(job_id=job.id)
+
+
+class JobLogsView(views.APIView):
+    def get(self, request, job_id):
+        try:
+            job = Job.objects.get(id=job_id)
+        except ObjectDoesNotExist:
+            return Response("Job not found", status=404)
+
+        try:
+            return FileResponse(open(job.logfile, "rb"))
+        except FileNotFoundError:
+            return Response("Log file not found", status=404)

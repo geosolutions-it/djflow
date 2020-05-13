@@ -53,39 +53,3 @@ def provide_input(job_id: typing.Union[int, str], external_data: typing.Dict) ->
     job = Job.objects.get(id=job_id)
     job.provide_external_input(external_data)
     process_job.send(job.id)
-
-
-def set_watchdog_on_wdk_models():
-    """
-    Method starting a background thread updating database with user defined Steps, Decisions and Workflows.
-
-    :return: None
-    """
-    import atexit
-    from apscheduler.schedulers.background import BackgroundScheduler
-    from django.db.utils import ProgrammingError
-
-    from .models import Watchdog
-    from .utils import deregister_watchdog, update_wdk_models
-    from .settings import WATCHDOG_INTERVAL
-
-    try:
-        watchdog = Watchdog.load()
-    except ProgrammingError:
-        # raised in case of not existing models in db (e.g. on the python manage.py migrate)
-        print("Watchdog singleton cannot be fetched from db.")
-        return
-
-    if not watchdog.running and WATCHDOG_INTERVAL > 0:
-        # order deregister_watchdog() executions as exit function.
-        atexit.register(deregister_watchdog)
-
-        # mark watchdog as running
-        watchdog.running = True
-        watchdog.save()
-        # schedule periodic watchdog's execution
-        scheduler = BackgroundScheduler(daemon=True)
-        scheduler.add_job(update_wdk_models, "interval", seconds=WATCHDOG_INTERVAL)
-        scheduler.start()
-    elif WATCHDOG_INTERVAL <= 0:
-        print(f"Watchdog turned of by WATCHDOG_INTERVAL equal: {WATCHDOG_INTERVAL}")

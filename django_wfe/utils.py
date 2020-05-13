@@ -3,16 +3,16 @@ import importlib
 
 from django.db.models import ObjectDoesNotExist
 from django.db.utils import ProgrammingError
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.background import BlockingScheduler
 
-from .settings import WORKFLOWS
+from .settings import WFE_WORKFLOWS, WFE_WATCHDOG_INTERVAL
 from .models import Step, Workflow, Watchdog
 from .workflows import WorkflowType
 
 
 def set_watchdog_on_wdk_models():
     """
-    Method starting a background thread updating database with user defined Steps, Decisions and Workflows.
+    Method updating database with user defined Steps, Decisions and Workflows.
 
     :return: None
     """
@@ -24,7 +24,7 @@ def set_watchdog_on_wdk_models():
         print("Watchdog singleton cannot be fetched from db.")
         return
 
-    if not watchdog.running:
+    if not watchdog.running and WFE_WATCHDOG_INTERVAL > 0:
         # order deregister_watchdog() executions as exit function.
         atexit.register(deregister_watchdog)
 
@@ -32,9 +32,15 @@ def set_watchdog_on_wdk_models():
         watchdog.running = True
         watchdog.save()
         # schedule periodic watchdog's execution
-        scheduler = BackgroundScheduler(daemon=True)
-        scheduler.add_job(update_wdk_models, "interval", seconds=5)
+        scheduler = BlockingScheduler(daemon=True)
+        scheduler.add_job(update_wdk_models, "interval", seconds=WFE_WATCHDOG_INTERVAL)
         scheduler.start()
+    elif WFE_WATCHDOG_INTERVAL <= 0:
+        print(
+            f"Watchdog turned of by WFE_WATCHDOG_INTERVAL equal: {WFE_WATCHDOG_INTERVAL}"
+        )
+    elif watchdog.running:
+        print(f"Watchdog process already running.")
 
 
 def deregister_watchdog():
@@ -57,12 +63,12 @@ def update_wdk_models():
     :return: None
     """
 
-    if WORKFLOWS is None:
+    if WFE_WORKFLOWS is None:
         print(f"WARNING: Module's path for django-wfe Workflows is None.")
         return
 
     # import the module
-    model_definitions_module = importlib.import_module(WORKFLOWS)
+    model_definitions_module = importlib.import_module(WFE_WORKFLOWS)
     # refresh the module to attach all the newest changes
     importlib.reload(model_definitions_module)
 
@@ -73,7 +79,7 @@ def update_wdk_models():
     ]
 
     for name, cls in models:
-        model_path = f"{WORKFLOWS}.{name}"
+        model_path = f"{WFE_WORKFLOWS}.{name}"
 
         steps_cls = cls._get_steps_classes()
 
