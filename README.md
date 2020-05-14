@@ -12,8 +12,6 @@ Both Steps and Workflows are defined as a python code classes, inheriting from `
 * [PostgreSQL][postgres] 11.7+
 * [psycopg2][psycopg2] 2.8+
 * [django_dramatiq][django_dramatiq] 0.9+
-
-##### Optional requirements:
 * [django-rest-framework][djangorestframework] 3.11+ (only needed, if you'll use django-wfe REST API)
 
 ##### Implicite requirements (installed along with the django-wfe app):
@@ -89,22 +87,18 @@ or:
             # ...
         ]
         ```
-    * Configure path to your `django-wfe` Steps and Workflows definition files (optionally also Decisions,
-    which by default are processed as Steps):
+    * Configure path to your `django-wfe` Workflows definition files (Step and Decisions are fetched automatically based on the defined Workflows):
     
         ``` python
-        WFE_STEPS = 'myapp.steps'
         WFE_WORKFLOWS = 'myapp.workflows'
         ```
 
-2. **Optionally** add django-wfe URL's to the project's `urlpatterns` in `your_project.urls.py` file (remember to install `djangorestframework` frist):
+2. Add django-wfe URL's to the project's `urlpatterns` in `your_project.urls.py` file (remember to install `djangorestframework` frist):
 
-    ``` python
-    from django_wfe import urls as wfe_urls
-    
+    ``` python   
     urlpatterns = [
         # ...
-        path('api/wfe/', include(wfe_urls.urlpatterns)),
+        path('wfe/', include("django_wfe.urls", namespace="django_wfe")),
     ]
     ```
 
@@ -114,9 +108,13 @@ or:
 
 ## Usage
 
+*Important!* Do **not** use `from something import *` in the files django-wfe is using.
+
+In the current version of the django_wfe it is discouraged to use import all format in all files, especially in Steps, Decisions and Workflows definition files. Usually, the application will not be bothered by such syntax, but the automatical synchronization of the database with your custom WFE models (workflows, steps and decisions) during the runtime may fail.
+
 ### Declaring Steps
 
-In the file provided in `WFE_STEPS` define your Steps. The Step is a class inheriting from `django_wfe.steps.Step`, which overrides its `execute()` method with a custom logic. `execute()` generally takes only one parameter `_input`, which is a result of the previously executed task. Please note, it is up to you to take care of the `_input` which is received by the Step. The Step executed before the current one in the Workflow does not necessarily need to follow any schema of its output.
+In a convinient file define your Steps. The Step is a class inheriting from `django_wfe.steps.Step`, which overrides its `execute()` method with a custom logic. `execute()` generally takes only one parameter `_input`, which is a result of the previously executed task. Please note, it is up to you to take care of the `_input` which is received by the Step. The Step executed before the current one in the Workflow does not necessarily need to follow any schema of its output.
 
 The basic Step implementation could look like:
 
@@ -145,7 +143,7 @@ class Step2(steps.Step):
 
 ### Declaring Decisions
 
-Decisions are an abstract concept of the Step, introduced for an easier management of the project. If you declared `WFE_DECISIONS` path in the `settings.py` file, you should define the decisions there, and if not - use `WFE_STEPS` file.
+Decisions are an abstract concept of the Step, introduced for an easier management of the project. You can define the decisions in the same file as Steps or separate them, according to your preferences.
 
 Definition of your Decisions should inherit from `django_wfe.steps.Decision` class. Since Decisions are technically speaking Steps, they may also define `execute()` method, but in their case, much more important is `transition()` method, which defines which node should be executed next.
 `transition()` method takes the same arguments as Step's `execute()` (including `UserInputSchema` declared external input), but it should return a integer, representing the index of the next Step to execute. For more info please check [Declaring Workflows] chapter.
@@ -192,7 +190,7 @@ Step1 -> Decision1                Step3
 
 ### Running Workflows
 
-**Note:** When running the project with django-wfe application, the background process, updating the database with the currently available Steps, Decisions and Workflows is triggered, so files with the definitions can be changed during the project execution. By default, an update is executed every 5 seconds, but it can be customized with `WFE_WATCHDOG_INTERVAL` setting. Providing a non-positive value will result in disabling the updating task.
+**Note:** When running the project with django-wfe application, the background process, updating the database with the currently used Steps and Decisions, and available Workflows is triggered, so files containing the definitions can be changed during the project runtime. By default, an update is executed every 5 seconds, but it can be customized with `WFE_WATCHDOG_INTERVAL` setting. Providing a non-positive value will result in disabling the updating task.
 
 ##### With python functions
 
