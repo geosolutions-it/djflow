@@ -1,5 +1,6 @@
 import atexit
 import importlib
+from collections.abc import Iterable
 
 from django.db.models import ObjectDoesNotExist
 from django.db.utils import ProgrammingError
@@ -67,42 +68,49 @@ def update_wdk_models():
         print(f"WARNING: Module's path for django-wfe Workflows is None.")
         return
 
-    # import the module
-    model_definitions_module = importlib.import_module(WFE_WORKFLOWS)
-    # refresh the module to attach all the newest changes
-    importlib.reload(model_definitions_module)
+    if isinstance(WFE_WORKFLOWS, Iterable):
+        wfe_workflow_files = WFE_WORKFLOWS
+    else:
+        wfe_workflow_files = [WFE_WORKFLOWS]
 
-    models = [
-        (name, cls)
-        for name, cls in model_definitions_module.__dict__.items()
-        if isinstance(cls, WorkflowType)
-    ]
+    for wfe_workflow_file in wfe_workflow_files:
 
-    for name, cls in models:
-        model_path = f"{WFE_WORKFLOWS}.{name}"
+        # import the module
+        model_definitions_module = importlib.import_module(wfe_workflow_file)
+        # refresh the module to attach all the newest changes
+        importlib.reload(model_definitions_module)
 
-        steps_cls = cls._get_steps_classes()
+        models = [
+            (name, cls)
+            for name, cls in model_definitions_module.__dict__.items()
+            if isinstance(cls, WorkflowType)
+        ]
 
-        # update Workflow model entries
-        try:
-            Workflow.objects.get(path=model_path)
-        except ObjectDoesNotExist:
+        for name, cls in models:
+            model_path = f"{wfe_workflow_file}.{name}"
+
+            steps_cls = cls._get_steps_classes()
+
+            # update Workflow model entries
             try:
-                Workflow(name=name, path=model_path).save()
-            except Exception as e:
-                print(
-                    f"SKIPPING Automatic mapping {model_path}: failed due to the exception:\n{type(e).__name__}: {e}"
-                )
-
-        # update Step model instances defined by the Workflow
-        for step in steps_cls:
-            step_path = f"{step.__module__}.{step.__name__}"
-            try:
-                Step.objects.get(path=step_path)
+                Workflow.objects.get(path=model_path)
             except ObjectDoesNotExist:
                 try:
-                    Step(name=step.__name__, path=step_path).save()
+                    Workflow(name=name, path=model_path).save()
                 except Exception as e:
                     print(
-                        f"SKIPPING Automatic mapping {step_path}: failed due to the exception:\n{type(e).__name__}: {e}"
+                        f"SKIPPING Automatic mapping {model_path}: failed due to the exception:\n{type(e).__name__}: {e}"
                     )
+
+            # update Step model instances defined by the Workflow
+            for step in steps_cls:
+                step_path = f"{step.__module__}.{step.__name__}"
+                try:
+                    Step.objects.get(path=step_path)
+                except ObjectDoesNotExist:
+                    try:
+                        Step(name=step.__name__, path=step_path).save()
+                    except Exception as e:
+                        print(
+                            f"SKIPPING Automatic mapping {step_path}: failed due to the exception:\n{type(e).__name__}: {e}"
+                        )

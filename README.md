@@ -87,11 +87,15 @@ or:
             # ...
         ]
         ```
-    * Configure path to your `django-wfe` Workflows definition files (Step and Decisions are fetched automatically based on the defined Workflows):
+    * Configure path to your `django-wfe` Workflows definition files (Step and Decisions are fetched automatically based on the defined Workflows). You can define a single (string) or multiple (Iterable of strings) Workflow definition:
     
         ``` python
         WFE_WORKFLOWS = 'myapp.workflows'
         ```
+        OR
+        ``` python
+        WFE_WORKFLOWS = ['myapp1.workflows', 'myapp2.workflows`]
+        ```        
 
 2. Add django-wfe URL's to the project's `urlpatterns` in `your_project.urls.py` file (remember to install `djangorestframework` frist):
 
