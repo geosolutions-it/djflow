@@ -1,8 +1,9 @@
+import os
 import pydantic
+import tempfile
 from django.test import TestCase, override_settings
 
 from django_wfe.models import Step, Workflow, Job, JobState
-from django_wfe.settings import WFE_LOG_DIR
 from django_wfe import steps
 from django_wfe import workflows
 from django_wfe import exceptions
@@ -14,6 +15,20 @@ class JobTest(TestCase):
     fixtures = [
         "django_wfe/tests/wdk_fixtures.json",
     ]
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+
+        # create the temporary log directory
+        cls.tmp_log_dir = tempfile.TemporaryDirectory()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+
+        # remove temporary log dir
+        cls.tmp_log_dir.cleanup()
 
     def test_import_class(self):
         step = Step.objects.first()
@@ -30,17 +45,16 @@ class JobTest(TestCase):
         """
         workflow = Workflow.objects.get(name="TestWorkflowEmpty")
 
-        job = Job(workflow_id=workflow.id)
+        job = Job(
+            workflow_id=workflow.id,
+            logfile=os.path.join(self.tmp_log_dir.name, "django_wfe_tmp.log"),
+        )
         job.save()
 
         self.assertEqual(
             job.state,
             JobState.PENDING,
             f"Initial Job state is different from JobState.PENDING: {job.state}",
-        )
-        self.assertTrue(
-            WFE_LOG_DIR in job.logfile,
-            f"Logfile of the Job is not pointing at WFE_LOG_DIR: {job.logfile}",
         )
         self.assertEqual(
             job.current_step.id,
@@ -110,7 +124,10 @@ class JobTest(TestCase):
         """
         workflow = Workflow.objects.get(name="TestWorkflowEmpty")
 
-        job = Job(workflow_id=workflow.id)
+        job = Job(
+            workflow_id=workflow.id,
+            logfile=os.path.join(self.tmp_log_dir.name, "django_wfe_tmp.log"),
+        )
         job.save()
 
         job.execute()
@@ -131,7 +148,10 @@ class JobTest(TestCase):
         """
         workflow = Workflow.objects.get(name="TestWorkflowSuccess")
 
-        job = Job(workflow_id=workflow.id)
+        job = Job(
+            workflow_id=workflow.id,
+            logfile=os.path.join(self.tmp_log_dir.name, "django_wfe_tmp.log"),
+        )
         job.save()
 
         job.execute()
@@ -156,7 +176,10 @@ class JobTest(TestCase):
         """
         workflow = Workflow.objects.get(name="TestWorkflowError")
 
-        job = Job(workflow_id=workflow.id)
+        job = Job(
+            workflow_id=workflow.id,
+            logfile=os.path.join(self.tmp_log_dir.name, "django_wfe_tmp.log"),
+        )
         job.save()
 
         job.execute()
@@ -181,7 +204,10 @@ class JobTest(TestCase):
         """
         workflow = Workflow.objects.get(name="TestWorkflowExternalInput")
 
-        job = Job(workflow_id=workflow.id)
+        job = Job(
+            workflow_id=workflow.id,
+            logfile=os.path.join(self.tmp_log_dir.name, "django_wfe_tmp.log"),
+        )
         job.save()
 
         job.execute()
@@ -218,6 +244,7 @@ class JobTest(TestCase):
                 ]
             },
             state=JobState.INPUT_REQUIRED,
+            logfile=os.path.join(self.tmp_log_dir.name, "django_wfe_tmp.log"),
         )
         job.save()
 
@@ -255,6 +282,7 @@ class JobTest(TestCase):
                 ]
             },
             state=JobState.INPUT_REQUIRED,
+            logfile=os.path.join(self.tmp_log_dir.name, "django_wfe_tmp.log"),
         )
         job.save()
 
@@ -300,6 +328,7 @@ class JobTest(TestCase):
                 ]
             },
             state=JobState.INPUT_RECEIVED,
+            logfile=os.path.join(self.tmp_log_dir.name, "django_wfe_tmp.log"),
         )
         job.save()
 
