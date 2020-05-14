@@ -190,7 +190,11 @@ Step1 -> Decision1                Step3
 
 ### Running Workflows
 
-**Note:** When running the project with django-wfe application, the background process, updating the database with the currently used Steps and Decisions, and available Workflows is triggered, so files containing the definitions can be changed during the project runtime. By default, an update is executed every 5 seconds, but it can be customized with `WFE_WATCHDOG_INTERVAL` setting. Providing a non-positive value will result in disabling the updating task.
+**Note:** When running the project with django-wfe application, you should run `wfe_watchdog` process, updating the database with the currently used Steps and Decisions, and available Workflows, so the files containing the definitions can be changed during the project runtime. By default, an update is executed every 5 seconds, but it can be customized with `WFE_WATCHDOG_INTERVAL` setting. Providing a non-positive value will result in disabling the updating task. In a separate terminal run:
+
+```
+python manage.py wfe_watchdog
+```
 
 ##### With python functions
 
