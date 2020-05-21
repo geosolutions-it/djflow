@@ -1,5 +1,22 @@
+from django.core.exceptions import ValidationError
+
+
+# base exception classes:
+
+
 class WFEException(Exception):
     pass
+
+
+class RuntimeWFEError(WFEException):
+    pass
+
+
+class ValidationWFEError(ValidationError, WFEException):
+    pass
+
+
+# specific exceptions:
 
 
 class FinishedWorkflow(WFEException):
@@ -10,9 +27,9 @@ class InputRequired(WFEException):
     pass
 
 
-class RuntimeWFEError(WFEException):
+class WrongState(RuntimeWFEError):
     pass
 
 
-class WrongState(RuntimeWFEError):
+class WorkflowDeleted(ValidationWFEError):
     pass

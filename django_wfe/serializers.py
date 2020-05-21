@@ -1,19 +1,7 @@
 from rest_framework import serializers
 from django.urls import reverse_lazy
-from django.utils.html import format_html
 
-from .models import Job, Workflow, Step
-
-
-class StepSerializer(serializers.ModelSerializer):
-    """
-    WDK Step database representation serializer
-    """
-
-    class Meta:
-        model = Step
-        fields = "__all__"
-        read_only_fields = ["name", "path"]
+from .models import Job, Workflow
 
 
 class WorkflowSerializer(serializers.ModelSerializer):
@@ -34,7 +22,6 @@ class JobSerializer(serializers.ModelSerializer):
 
     workflow = WorkflowSerializer(read_only=True)
     workflow_id = serializers.IntegerField(write_only=True)
-    current_step = StepSerializer(read_only=True)
     log_file = serializers.SerializerMethodField()
 
     class Meta:

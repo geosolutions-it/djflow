@@ -3,7 +3,7 @@ import pydantic
 import tempfile
 from django.test import TestCase, override_settings
 
-from django_wfe.models import Step, Workflow, Job, JobState
+from django_wfe.models import Workflow, Job, JobState
 from django_wfe import steps
 from django_wfe import workflows
 from django_wfe import exceptions
@@ -31,12 +31,12 @@ class JobTest(TestCase):
         cls.tmp_log_dir.cleanup()
 
     def test_import_class(self):
-        step = Step.objects.first()
-        StepClass = Job.import_class(step.path)
+        workflow = Workflow.objects.first()
+        WorkflowClass = Job.import_class(workflow.path)
 
         self.assertTrue(
-            isinstance(StepClass, steps.StepType),
-            f"Imported StepClass is not a StepType type",
+            isinstance(WorkflowClass, workflows.WorkflowType),
+            f"Imported WorkflowClass is not a WorkflowType type",
         )
 
     def test_run_next_content(self):
@@ -57,8 +57,8 @@ class JobTest(TestCase):
             f"Initial Job state is different from JobState.PENDING: {job.state}",
         )
         self.assertEqual(
-            job.current_step.id,
-            Step.objects.get(name="__start__").id,
+            job.current_step,
+            "django_wfe.steps.__start__",
             f"Initial Job step wasn't updated with __start__ step",
         )
 
@@ -69,7 +69,7 @@ class JobTest(TestCase):
             f"Imported StepClass is not a StepType type",
         )
 
-        StepClass = job.import_class(job.current_step.path)
+        StepClass = job.import_class(job.current_step)
         self.assertTrue(
             isinstance(StepClass, steps.StepType),
             f"Imported StepClass is not a StepType type",
@@ -235,12 +235,12 @@ class JobTest(TestCase):
         # mock Job's state before providing external data
         job = Job(
             workflow_id=workflow.id,
-            current_step_id=Step.objects.get(name="ExternalInputStep").id,
+            current_step="django_wfe.tests.wdk_models.ExternalInputStep",
             current_step_number=2,
             storage={
                 "data": [
-                    {"step": Step.objects.get(name="__start__").name, "result": None},
-                    {"step": Step.objects.get(name="EmptyStepA").name, "result": None},
+                    {"step": "__start__", "result": None},
+                    {"step": "EmptyStepA", "result": None},
                 ]
             },
             state=JobState.INPUT_REQUIRED,
@@ -273,12 +273,12 @@ class JobTest(TestCase):
         # mock Job's state before providing external data
         job = Job(
             workflow_id=workflow.id,
-            current_step_id=Step.objects.get(name="ExternalInputStep").id,
+            current_step="django_wfe.tests.wdk_models.ExternalInputStep",
             current_step_number=2,
             storage={
                 "data": [
-                    {"step": Step.objects.get(name="__start__").name, "result": None},
-                    {"step": Step.objects.get(name="EmptyStepA").name, "result": None},
+                    {"step": "__start__", "result": None},
+                    {"step": "EmptyStepA", "result": None},
                 ]
             },
             state=JobState.INPUT_REQUIRED,
@@ -315,14 +315,14 @@ class JobTest(TestCase):
         # mock Job's state before providing external data
         job = Job(
             workflow_id=workflow.id,
-            current_step_id=Step.objects.get(name="ExternalInputStep").id,
+            current_step="django_wfe.tests.wdk_models.ExternalInputStep",
             current_step_number=2,
             storage={
                 "data": [
-                    {"step": Step.objects.get(name="__start__").name, "result": None},
-                    {"step": Step.objects.get(name="EmptyStepA").name, "result": None},
+                    {"step": "__start__", "result": None},
+                    {"step": "EmptyStepA", "result": None},
                     {
-                        "step": Step.objects.get(name="ExternalInputStep").name,
+                        "step": "ExternalInputStep",
                         "external_data": {"external_int": external_int},
                     },
                 ]

@@ -5,7 +5,6 @@ from . import views
 app_name = "rest_framework"
 
 router = routers.DefaultRouter()
-router.register(r"steps", views.StepViewSet)
 router.register(r"workflows", views.WorkflowViewSet)
 router.register(r"jobs", views.JobViewSet)
 

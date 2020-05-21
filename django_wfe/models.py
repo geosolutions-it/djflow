@@ -10,7 +10,7 @@ from django.contrib.postgres.fields import JSONField
 
 from .logging import Tee
 from .settings import WFE_LOG_DIR
-from .exceptions import FinishedWorkflow, InputRequired, WrongState
+from .exceptions import FinishedWorkflow, InputRequired, WrongState, WorkflowDeleted
 
 
 class JobState:
@@ -54,20 +54,6 @@ class Singleton(models.Model):
         pass
 
 
-class Step(models.Model):
-    """
-    A database representation of the Django WFE's Setps and Decisions implementations.
-    """
-
-    name = models.CharField(max_length=250)
-    path = models.CharField(
-        max_length=250, help_text="Python path of the Step definition", unique=True
-    )
-
-    def __str__(self):
-        return self.path
-
-
 class Workflow(models.Model):
     """
     A database representation of the Django WFE's Workflows implementations.
@@ -77,6 +63,7 @@ class Workflow(models.Model):
     path = models.CharField(
         max_length=250, help_text="Python path of the Workflow definition", unique=True
     )
+    deleted = models.BooleanField(default=False)
 
     def __str__(self):
         return self.path
@@ -89,8 +76,8 @@ class Job(models.Model):
 
     uuid = models.UUIDField(default=uuid.uuid4)
     workflow = models.ForeignKey(Workflow, on_delete=models.CASCADE)
-    current_step = models.ForeignKey(
-        Step, on_delete=models.CASCADE, null=True, default=None
+    current_step = models.CharField(
+        max_length=300, default="django_wfe.steps.__start__"
     )
     current_step_number = models.IntegerField(default=0)
     storage = JSONField(
@@ -103,14 +90,15 @@ class Job(models.Model):
     def save(
         self, force_insert=False, force_update=False, using=None, update_fields=None
     ):
-        # assign default Job starting step as current
-        if self.current_step is None:
-            try:
-                self.current_step = Step.objects.get(name="__start__")
-            except models.ObjectDoesNotExist:
-                print(
-                    "Step '__start__' not found. Please make sure it is present in the database before ordering a Job."
-                )
+        """
+        :raises: django_wfe.models.Workflow.DoesNotExist in case provided workflow's ID is not present in the database
+        :raises: django_wfe.exceptions.WorkflowDeleted in case provided workflow is marked as deleted (implementation was not found by the wfe_watchdog)
+        """
+        workflow = Workflow.objects.get(pk=self.workflow_id)
+        if workflow.deleted:
+            raise WorkflowDeleted(
+                message=f"Provided workflow implementation cannot be found: {workflow.path}"
+            )
 
         if self.logfile is None:
             self.logfile = os.path.join(
@@ -130,10 +118,11 @@ class Job(models.Model):
         :param path: python path (dot notation) to the class
         :return: class object under located under the provided path
         """
-        module, class_ = path.rsplit(".", 1)
-        Class = getattr(importlib.import_module(module), class_)
+        module_path, class_ = path.rsplit(".", 1)
+        module = importlib.import_module(module_path)
+        importlib.reload(module)
 
-        return Class
+        return getattr(module, class_)
 
     def execute(self):
         """
@@ -155,7 +144,14 @@ class Job(models.Model):
         :return:
         :raises: pydantic.ValidationError
         """
-        CurrentStep = self.import_class(self.current_step.path)
+        try:
+            CurrentStep = self.import_class(self.current_step)
+        except ImportError:
+            print(
+                f"Provide Exteranal input for {self.workflow.name}: import error of {self.current_step}"
+            )
+            self.state = JobState.FAILED
+            return
 
         if not CurrentStep.UserInputSchema.__fields__:
             raise WrongState(
@@ -175,7 +171,7 @@ class Job(models.Model):
             ] = external_data.dict()
         except IndexError:
             self.storage["data"].append(
-                {"step": self.current_step.path, "external_data": external_data.dict()}
+                {"step": self.current_step, "external_data": external_data.dict()}
             )
 
         self.state = JobState.INPUT_RECEIVED
@@ -187,8 +183,23 @@ class Job(models.Model):
 
         :return: None
         """
-        StepClass = self.import_class(self.current_step.path)
-        WorkflowClass = self.import_class(self.workflow.path)
+
+        try:
+            WorkflowClass = self.import_class(self.workflow.path)
+        except ImportError:
+            print(
+                f"Execute of {self.workflow.name} failed: import error of {self.workflow.path}"
+            )
+            raise
+
+        # try importing current step class
+        try:
+            StepClass = self.import_class(self.current_step)
+        except ImportError:
+            print(
+                f"Execute of {self.workflow.name} failed: import error of {self.current_step}"
+            )
+            raise
 
         try:
             current_step = self._step_initialize(StepClass)
@@ -278,9 +289,7 @@ class Job(models.Model):
         try:
             self.storage["data"][self.current_step_number]["result"] = result
         except IndexError:
-            self.storage["data"].append(
-                {"step": self.current_step.path, "result": result}
-            )
+            self.storage["data"].append({"step": self.current_step, "result": result})
         self.save()
 
         return result
@@ -347,12 +356,10 @@ class Job(models.Model):
             f"Step #{self.current_step_number} '{StepClass.__name__}': step finished"
         )
 
-        self.current_step = Step.objects.get(
-            path=(
-                WorkflowClass.DIGRAPH.get(StepClass)[transition].__module__
-                + "."
-                + WorkflowClass.DIGRAPH.get(StepClass)[transition].__name__
-            )
+        self.current_step = (
+            WorkflowClass.DIGRAPH.get(StepClass)[transition].__module__
+            + "."
+            + WorkflowClass.DIGRAPH.get(StepClass)[transition].__name__
         )
         self.current_step_number += 1
         self.save()

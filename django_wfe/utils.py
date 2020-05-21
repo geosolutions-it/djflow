@@ -7,13 +7,13 @@ from django.db.utils import ProgrammingError
 from apscheduler.schedulers.background import BlockingScheduler
 
 from .settings import WFE_WORKFLOWS, WFE_WATCHDOG_INTERVAL
-from .models import Step, Workflow, Watchdog
+from .models import Job, Workflow, Watchdog
 from .workflows import WorkflowType
 
 
 def set_watchdog_on_wdk_models():
     """
-    Method updating database with user defined Steps, Decisions and Workflows.
+    Method updating database with user defined Workflows.
 
     :return: None
     """
@@ -58,7 +58,7 @@ def deregister_watchdog():
 
 def update_wdk_models():
     """
-    A function iterating over user defined WDK classes (Steps, Decisions, and Workflows),
+    A function iterating over user defined WDK classes (Workflows),
     updating the database with their representation for the proper Job serialization.
 
     :return: None
@@ -68,11 +68,12 @@ def update_wdk_models():
         print(f"WARNING: Module's path for django-wfe Workflows is None.")
         return
 
-    if isinstance(WFE_WORKFLOWS, Iterable):
+    if not isinstance(WFE_WORKFLOWS, str) and isinstance(WFE_WORKFLOWS, Iterable):
         wfe_workflow_files = WFE_WORKFLOWS
     else:
         wfe_workflow_files = [WFE_WORKFLOWS]
 
+    # insert missing workflows to the database
     for wfe_workflow_file in wfe_workflow_files:
 
         # import the module
@@ -89,8 +90,6 @@ def update_wdk_models():
         for name, cls in models:
             model_path = f"{wfe_workflow_file}.{name}"
 
-            steps_cls = cls._get_steps_classes()
-
             # update Workflow model entries
             try:
                 Workflow.objects.get(path=model_path)
@@ -102,15 +101,14 @@ def update_wdk_models():
                         f"SKIPPING Automatic mapping {model_path}: failed due to the exception:\n{type(e).__name__}: {e}"
                     )
 
-            # update Step model instances defined by the Workflow
-            for step in steps_cls:
-                step_path = f"{step.__module__}.{step.__name__}"
-                try:
-                    Step.objects.get(path=step_path)
-                except ObjectDoesNotExist:
-                    try:
-                        Step(name=step.__name__, path=step_path).save()
-                    except Exception as e:
-                        print(
-                            f"SKIPPING Automatic mapping {step_path}: failed due to the exception:\n{type(e).__name__}: {e}"
-                        )
+    # remove deleted workflows from the database
+    for workflow in Workflow.objects.all():
+        try:
+            Job.import_class(workflow.path)
+        except Exception:
+            workflow.deleted = True
+            workflow.save()
+        else:
+            if workflow.deleted:
+                workflow.deleted = False
+                workflow.save()
