@@ -104,7 +104,12 @@ def update_wdk_models():
     # remove deleted workflows from the database
     for workflow in Workflow.objects.all():
         try:
-            Job.import_class(workflow.path)
+            # dynamic import of the Workflow class
+            module_path, class_ = workflow.path.rsplit(".", 1)
+            module = importlib.import_module(module_path)
+            importlib.reload(module)
+
+            WorkflowClass = getattr(module, class_)
         except Exception:
             workflow.deleted = True
             workflow.save()

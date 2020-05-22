@@ -3,7 +3,7 @@ A Django app providing multi-step workflow execution tools.
 """
 
 from django.apps import AppConfig
-from .app_utils import execute_workflow, provide_input
+from .app_utils import execute_workflow, execute_workflow_sync, provide_input
 
 
 VERSION = (0, 1, 0)

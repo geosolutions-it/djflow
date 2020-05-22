@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework import routers
 from . import views
 
-app_name = "rest_framework"
+app_name = "django_wfe"
 
 router = routers.DefaultRouter()
 router.register(r"workflows", views.WorkflowViewSet)

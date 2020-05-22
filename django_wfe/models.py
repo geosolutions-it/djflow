@@ -118,11 +118,18 @@ class Job(models.Model):
         :param path: python path (dot notation) to the class
         :return: class object under located under the provided path
         """
-        module_path, class_ = path.rsplit(".", 1)
-        module = importlib.import_module(module_path)
-        importlib.reload(module)
+        # TODO:
+        #  with the current Workflow definition implementation there is not possibility to
+        #  reload the module here looking for the newest changes -> it causes a new ID assignment
+        #  to already imported classes, which causes a mismatch, when parsing the workflow's DIGRAPH
+        #  when looking for the next step to execute.
+        #  Possibly, a simultaneous reload should be done here and in the Workflow definition files
+        #  Note: for import with reload please check removal of the deleted Workflows in wfe_watchdog
 
-        return getattr(module, class_)
+        module, class_ = path.rsplit(".", 1)
+        Class = getattr(importlib.import_module(module), class_)
+
+        return Class
 
     def execute(self):
         """
